@@ -1,8 +1,8 @@
 # devtical
 
 * `main.py` is currently a Python [PySide6](https://wiki.qt.io/Qt_for_Python_PySide) based flash tool (requires [mtkclient](https://github.com/bkerler/mtkclient) / [edl client](https://github.com/bkerler/edl) / [sp flash tool](https://spflashtool.com/)).
-* Next, I'll update it to integrate with [SPDClient](https://github.com/ABDO10DZ/spdclient) and [XynClient](https://github.com/ABDO10DZ/XynClient) to create a multifunctional flash utility
-* Integrated with [ffdm download manager](https://github.com/ABDO10DZ/ffdm) for mass/single automated downloading of firmware ROMs and tools, with auto usage to gain easy, free access for you—no server-side login required
+* done : integrated with [SPDClient](https://github.com/ABDO10DZ/spdclient) and [XynClient](https://github.com/ABDO10DZ/XynClient) to create a multifunctional flash utility
+* next : Integrated with [ffdm download manager](https://github.com/ABDO10DZ/ffdm) for mass/single automated downloading of firmware ROMs and tools, with auto usage to gain easy, free access for you—no server-side login required
 * **Added `minimal-RomScarper.py`:**
   - A new minimal firmware ROM scraper tool for collecting downloadable ROMs from public databases such as [firmwarefile.com].
   - This tool uses respectful scraping techniques, extracting Google Drive, MediaFire, and Mega.nz download links for device firmware.
