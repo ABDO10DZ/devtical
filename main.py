@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayo
                                QProgressBar, QTabWidget, QLineEdit, QGroupBox,
                                QSplitter, QFrame, QToolBar, QStatusBar, QToolButton,
                                QMenu, QSystemTrayIcon, QStyle, QInputDialog, QFormLayout)
-from PySide6.QtCore import Qt, QThread, Signal, QSettings, QTimer, QSize
+from PySide6.QtCore import Qt, QThread, Signal, QSettings, QTimer, QSize, QProcess
 from PySide6.QtGui import QFont, QIcon, QPalette, QColor, QAction, QPixmap, QPainter
 
 class ModernProgressBar(QProgressBar):
@@ -39,13 +39,20 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.settings = settings
         self.setWindowTitle("Tool Settings")
-        self.setMinimumSize(600, 500)
+        self.setMinimumSize(800, 700)
         self.setup_ui()
         self.load_settings()
 
     def setup_ui(self):
         layout = QVBoxLayout()
 
+        # Create tab widget for better organization
+        tab_widget = QTabWidget()
+        
+        # Basic Tools Tab
+        basic_tab = QWidget()
+        basic_layout = QVBoxLayout(basic_tab)
+        
         # Tool paths
         paths_group = QGroupBox("Tool Paths")
         paths_layout = QFormLayout()
@@ -75,6 +82,7 @@ class SettingsDialog(QDialog):
         paths_layout.addRow("EDL Tool:", edl_layout)
         paths_layout.addRow("AVB Tool:", avb_layout)
         paths_group.setLayout(paths_layout)
+        basic_layout.addWidget(paths_group)
 
         # Commands
         commands_group = QGroupBox("Commands Configuration")
@@ -90,6 +98,24 @@ class SettingsDialog(QDialog):
         commands_layout.addRow("Read Command:", self.read_cmd)
         commands_layout.addRow("Patch Command:", self.patch_cmd)
         commands_group.setLayout(commands_layout)
+        basic_layout.addWidget(commands_group)
+
+        # FRP Configuration
+        frp_group = QGroupBox("FRP Configuration")
+        frp_layout = QFormLayout()
+        
+        self.basic_frp_partitions = QLineEdit()
+        self.advanced_frp_partitions = QLineEdit()
+        
+        frp_layout.addRow("Basic FRP Partitions:", self.basic_frp_partitions)
+        frp_layout.addRow("Advanced FRP Partitions:", self.advanced_frp_partitions)
+        
+        frp_info = QLabel("Enter comma-separated partition names (e.g., frp,metadata,userdata)")
+        frp_info.setStyleSheet("color: #888; font-size: 10px;")
+        frp_layout.addRow("", frp_info)
+        
+        frp_group.setLayout(frp_layout)
+        basic_layout.addWidget(frp_group)
 
         # Options
         options_group = QGroupBox("Options")
@@ -103,10 +129,100 @@ class SettingsDialog(QDialog):
         options_layout.addWidget(self.backup_enable)
         options_layout.addWidget(self.auto_detect)
         options_group.setLayout(options_layout)
+        basic_layout.addWidget(options_group)
+        
+        basic_layout.addStretch()
+        tab_widget.addTab(basic_tab, "Basic Tools")
 
-        layout.addWidget(paths_group)
-        layout.addWidget(commands_group)
-        layout.addWidget(options_group)
+        # SPD Client Tab
+        spd_tab = QWidget()
+        spd_layout = QVBoxLayout(spd_tab)
+        
+        spd_group = QGroupBox("SPD Client (Spreadtrum/Unisoc)")
+        spd_form = QFormLayout()
+        
+        self.spd_path = QLineEdit()
+        self.spd_browse = QPushButton("Browse")
+        self.spd_browse.clicked.connect(lambda: self.browse_file(self.spd_path))
+        spd_path_layout = QHBoxLayout()
+        spd_path_layout.addWidget(self.spd_path)
+        spd_path_layout.addWidget(self.spd_browse)
+        
+        self.spd_flash_cmd = QLineEdit()
+        self.spd_erase_cmd = QLineEdit()
+        self.spd_read_cmd = QLineEdit()
+        self.spd_extract_cmd = QLineEdit()
+        self.spd_adv_frp_cmd = QLineEdit()
+        
+        spd_form.addRow("SPD Tool Path:", spd_path_layout)
+        spd_form.addRow("Flash Command:", self.spd_flash_cmd)
+        spd_form.addRow("Erase Command:", self.spd_erase_cmd)
+        spd_form.addRow("Read Command:", self.spd_read_cmd)
+        spd_form.addRow("Extract PAC Command:", self.spd_extract_cmd)
+        spd_form.addRow("Advanced FRP Command:", self.spd_adv_frp_cmd)
+        
+        spd_group.setLayout(spd_form)
+        spd_layout.addWidget(spd_group)
+        
+        spd_info = QLabel(
+            "SPD Advanced FRP can use:\n"
+            "• Engineering FDL files\n"
+            "• Pre-patched loaders\n"
+            "• Factory reset partitions\n"
+            "Use {fdl1}, {fdl2}, {partitions} placeholders"
+        )
+        spd_info.setWordWrap(True)
+        spd_info.setStyleSheet("background-color: #2a2a2a; padding: 10px; border-radius: 5px;")
+        spd_layout.addWidget(spd_info)
+        spd_layout.addStretch()
+        tab_widget.addTab(spd_tab, "SPD Client")
+
+        # XYN Client Tab
+        xyn_tab = QWidget()
+        xyn_layout = QVBoxLayout(xyn_tab)
+        
+        xyn_group = QGroupBox("XYN Client (Exynos)")
+        xyn_form = QFormLayout()
+        
+        self.xyn_path = QLineEdit()
+        self.xyn_browse = QPushButton("Browse")
+        self.xyn_browse.clicked.connect(lambda: self.browse_file(self.xyn_path))
+        xyn_path_layout = QHBoxLayout()
+        xyn_path_layout.addWidget(self.xyn_path)
+        xyn_path_layout.addWidget(self.xyn_browse)
+        
+        self.xyn_flash_cmd = QLineEdit()
+        self.xyn_erase_cmd = QLineEdit()
+        self.xyn_read_cmd = QLineEdit()
+        self.xyn_detect_cmd = QLineEdit()
+        self.xyn_partitions_cmd = QLineEdit()
+        self.xyn_adv_frp_cmd = QLineEdit()
+        
+        xyn_form.addRow("XYN Tool Path:", xyn_path_layout)
+        xyn_form.addRow("Flash Command:", self.xyn_flash_cmd)
+        xyn_form.addRow("Erase Command:", self.xyn_erase_cmd)
+        xyn_form.addRow("Read Command:", self.xyn_read_cmd)
+        xyn_form.addRow("Detect Command:", self.xyn_detect_cmd)
+        xyn_form.addRow("Partitions Command:", self.xyn_partitions_cmd)
+        xyn_form.addRow("Advanced FRP Command:", self.xyn_adv_frp_cmd)
+        
+        xyn_group.setLayout(xyn_form)
+        xyn_layout.addWidget(xyn_group)
+        
+        xyn_info = QLabel(
+            "XYN Advanced FRP can use:\n"
+            "• Combination firmware\n"
+            "• Engineering bootloaders\n"
+            "• Custom PIT files\n"
+            "Use {partitions} placeholder"
+        )
+        xyn_info.setWordWrap(True)
+        xyn_info.setStyleSheet("background-color: #2a2a2a; padding: 10px; border-radius: 5px;")
+        xyn_layout.addWidget(xyn_info)
+        xyn_layout.addStretch()
+        tab_widget.addTab(xyn_tab, "XYN Client")
+
+        layout.addWidget(tab_widget)
 
         # Buttons
         button_layout = QHBoxLayout()
@@ -131,6 +247,7 @@ class SettingsDialog(QDialog):
             line_edit.setText(file_path)
 
     def load_settings(self):
+        # Basic tools
         self.mtk_path.setText(self.settings.get("mtk_path", "mtk.py"))
         self.edl_path.setText(self.settings.get("edl_path", "edl.py"))
         self.avb_path.setText(self.settings.get("avb_path", "avbtool"))
@@ -140,11 +257,33 @@ class SettingsDialog(QDialog):
         self.read_cmd.setText(self.settings.get("read_cmd", "--read {partition} {file}"))
         self.patch_cmd.setText(self.settings.get("patch_cmd", "patch_vbmeta --input {input} --output {output}"))
         
+        # FRP Configuration
+        self.basic_frp_partitions.setText(self.settings.get("basic_frp_partitions", "frp,metadata,userdata"))
+        self.advanced_frp_partitions.setText(self.settings.get("advanced_frp_partitions", "frp,metadata,userdata,persist"))
+        
         self.dark_mode.setChecked(self.settings.get("dark_mode", False))
         self.backup_enable.setChecked(self.settings.get("backup_enable", True))
         self.auto_detect.setChecked(self.settings.get("auto_detect", True))
+        
+        # SPD Client
+        self.spd_path.setText(self.settings.get("spd_path", "spd.py"))
+        self.spd_flash_cmd.setText(self.settings.get("spd_flash_cmd", "writepart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}"))
+        self.spd_erase_cmd.setText(self.settings.get("spd_erase_cmd", "erasepart {partition} --fdl1 {fdl1} --fdl2 {fdl2}"))
+        self.spd_read_cmd.setText(self.settings.get("spd_read_cmd", "readpart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}"))
+        self.spd_extract_cmd.setText(self.settings.get("spd_extract_cmd", "extractpac {pac_file}"))
+        self.spd_adv_frp_cmd.setText(self.settings.get("spd_adv_frp_cmd", "writepart {partition} zero.bin --fdl1 {fdl1} --fdl2 {fdl2}"))
+        
+        # XYN Client
+        self.xyn_path.setText(self.settings.get("xyn_path", "xyn_cli.py"))
+        self.xyn_flash_cmd.setText(self.settings.get("xyn_flash_cmd", "write {partition} {file}"))
+        self.xyn_erase_cmd.setText(self.settings.get("xyn_erase_cmd", "erase {partition} --force"))
+        self.xyn_read_cmd.setText(self.settings.get("xyn_read_cmd", "read {partition} {file}"))
+        self.xyn_detect_cmd.setText(self.settings.get("xyn_detect_cmd", "detect"))
+        self.xyn_partitions_cmd.setText(self.settings.get("xyn_partitions_cmd", "partitions"))
+        self.xyn_adv_frp_cmd.setText(self.settings.get("xyn_adv_frp_cmd", "erase {partition} --force"))
 
     def save_settings(self):
+        # Basic tools
         self.settings["mtk_path"] = self.mtk_path.text()
         self.settings["edl_path"] = self.edl_path.text()
         self.settings["avb_path"] = self.avb_path.text()
@@ -154,14 +293,36 @@ class SettingsDialog(QDialog):
         self.settings["read_cmd"] = self.read_cmd.text()
         self.settings["patch_cmd"] = self.patch_cmd.text()
         
+        # FRP Configuration
+        self.settings["basic_frp_partitions"] = self.basic_frp_partitions.text()
+        self.settings["advanced_frp_partitions"] = self.advanced_frp_partitions.text()
+        
         self.settings["dark_mode"] = self.dark_mode.isChecked()
         self.settings["backup_enable"] = self.backup_enable.isChecked()
         self.settings["auto_detect"] = self.auto_detect.isChecked()
+        
+        # SPD Client
+        self.settings["spd_path"] = self.spd_path.text()
+        self.settings["spd_flash_cmd"] = self.spd_flash_cmd.text()
+        self.settings["spd_erase_cmd"] = self.spd_erase_cmd.text()
+        self.settings["spd_read_cmd"] = self.spd_read_cmd.text()
+        self.settings["spd_extract_cmd"] = self.spd_extract_cmd.text()
+        self.settings["spd_adv_frp_cmd"] = self.spd_adv_frp_cmd.text()
+        
+        # XYN Client
+        self.settings["xyn_path"] = self.xyn_path.text()
+        self.settings["xyn_flash_cmd"] = self.xyn_flash_cmd.text()
+        self.settings["xyn_erase_cmd"] = self.xyn_erase_cmd.text()
+        self.settings["xyn_read_cmd"] = self.xyn_read_cmd.text()
+        self.settings["xyn_detect_cmd"] = self.xyn_detect_cmd.text()
+        self.settings["xyn_partitions_cmd"] = self.xyn_partitions_cmd.text()
+        self.settings["xyn_adv_frp_cmd"] = self.xyn_adv_frp_cmd.text()
         
         self.accept()
 
     def reset_defaults(self):
         default_settings = {
+            # Basic tools
             "mtk_path": "mtk.py",
             "edl_path": "edl.py", 
             "avb_path": "avbtool",
@@ -169,9 +330,31 @@ class SettingsDialog(QDialog):
             "erase_cmd": "--erase {partition}",
             "read_cmd": "--read {partition} {file}",
             "patch_cmd": "patch_vbmeta --input {input} --output {output}",
+            
+            # FRP Configuration
+            "basic_frp_partitions": "frp,metadata,userdata",
+            "advanced_frp_partitions": "frp,metadata,userdata,persist",
+            
             "dark_mode": False,
             "backup_enable": True,
-            "auto_detect": True
+            "auto_detect": True,
+            
+            # SPD Client
+            "spd_path": "spd.py",
+            "spd_flash_cmd": "writepart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}",
+            "spd_erase_cmd": "erasepart {partition} --fdl1 {fdl1} --fdl2 {fdl2}",
+            "spd_read_cmd": "readpart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}",
+            "spd_extract_cmd": "extractpac {pac_file}",
+            "spd_adv_frp_cmd": "writepart {partition} zero.bin --fdl1 {fdl1} --fdl2 {fdl2}",
+            
+            # XYN Client
+            "xyn_path": "xyn_cli.py",
+            "xyn_flash_cmd": "write {partition} {file}",
+            "xyn_erase_cmd": "erase {partition} --force",
+            "xyn_read_cmd": "read {partition} {file}",
+            "xyn_detect_cmd": "detect",
+            "xyn_partitions_cmd": "partitions",
+            "xyn_adv_frp_cmd": "erase {partition} --force"
         }
         
         for key, value in default_settings.items():
@@ -301,6 +484,171 @@ class ToolValidator:
             
         return False, f"❌ {tool_name} not found: {tool_path}"
 
+class TerminalWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.process = None
+        self.setup_ui()
+        self.start_shell()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+        
+        # Terminal header
+        header_layout = QHBoxLayout()
+        self.shell_label = QLabel("Terminal")
+        self.shell_label.setStyleSheet("font-weight: bold; color: #00ff00;")
+        header_layout.addWidget(self.shell_label)
+        
+        self.current_dir_label = QLabel("")
+        self.current_dir_label.setStyleSheet("color: #888; font-size: 10px;")
+        header_layout.addWidget(self.current_dir_label)
+        
+        header_layout.addStretch()
+        
+        # Terminal controls
+        self.restart_btn = QPushButton("🔄 Restart")
+        self.restart_btn.clicked.connect(self.restart_shell)
+        self.restart_btn.setMaximumWidth(100)
+        header_layout.addWidget(self.restart_btn)
+        
+        self.clear_btn = QPushButton("🧹 Clear")
+        self.clear_btn.clicked.connect(self.clear_terminal)
+        self.clear_btn.setMaximumWidth(100)
+        header_layout.addWidget(self.clear_btn)
+        
+        layout.addLayout(header_layout)
+        
+        # Terminal output
+        self.terminal_output = QTextEdit()
+        self.terminal_output.setFont(QFont("Consolas", 10))
+        self.terminal_output.setReadOnly(True)
+        self.terminal_output.setStyleSheet("""
+            QTextEdit {
+                background-color: #1a1a1a;
+                color: #00ff00;
+                border: 1px solid #444;
+                border-radius: 4px;
+                font-family: Consolas, monospace;
+            }
+        """)
+        layout.addWidget(self.terminal_output)
+        
+        # Input area
+        input_layout = QHBoxLayout()
+        input_layout.addWidget(QLabel("$"))
+        
+        self.terminal_input = QLineEdit()
+        self.terminal_input.setPlaceholderText("Enter command...")
+        self.terminal_input.returnPressed.connect(self.execute_command)
+        self.terminal_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2b2b2b;
+                color: #00ff00;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 8px;
+                font-family: Consolas, monospace;
+            }
+            QLineEdit:focus {
+                border: 1px solid #0078D7;
+            }
+        """)
+        input_layout.addWidget(self.terminal_input)
+        
+        self.execute_btn = QPushButton("Run")
+        self.execute_btn.clicked.connect(self.execute_command)
+        self.execute_btn.setMaximumWidth(80)
+        input_layout.addWidget(self.execute_btn)
+        
+        layout.addLayout(input_layout)
+        
+        self.setLayout(layout)
+
+    def start_shell(self):
+        """Start the appropriate shell for the current OS"""
+        self.terminal_output.append("🚀 Starting terminal session...\n")
+        
+        self.process = QProcess()
+        self.process.readyReadStandardOutput.connect(self.read_output)
+        self.process.readyReadStandardError.connect(self.read_error)
+        self.process.finished.connect(self.process_finished)
+        
+        # Set working directory to current directory
+        current_dir = os.getcwd()
+        self.process.setWorkingDirectory(current_dir)
+        self.current_dir_label.setText(f"Directory: {current_dir}")
+        
+        if os.name == 'nt':  # Windows
+            shell = "cmd.exe"
+            self.shell_label.setText("Windows Command Prompt")
+            self.terminal_output.append("💻 Windows Command Prompt (cmd.exe)\n")
+        else:  # Linux/Mac
+            shell = "/bin/bash"
+            self.shell_label.setText("Bash Terminal")
+            self.terminal_output.append("🐧 Bash Terminal (/bin/bash)\n")
+        
+        self.terminal_output.append(f"📁 Working directory: {current_dir}\n")
+        self.terminal_output.append("─" * 50 + "\n")
+        
+        try:
+            self.process.start(shell)
+            if not self.process.waitForStarted(3000):
+                self.terminal_output.append("❌ Failed to start shell process\n")
+        except Exception as e:
+            self.terminal_output.append(f"❌ Error starting shell: {str(e)}\n")
+
+    def execute_command(self):
+        command = self.terminal_input.text().strip()
+        if not command:
+            return
+            
+        # Show the command in terminal
+        self.terminal_output.append(f"$ {command}\n")
+        self.terminal_input.clear()
+        
+        if self.process and self.process.state() == QProcess.Running:
+            # Add newline to execute the command
+            self.process.write((command + "\n").encode())
+        else:
+            self.terminal_output.append("❌ Shell process not running. Restart the terminal.\n")
+
+    def read_output(self):
+        if self.process:
+            data = self.process.readAllStandardOutput().data().decode()
+            self.terminal_output.append(data)
+            # Auto-scroll to bottom
+            self.terminal_output.verticalScrollBar().setValue(
+                self.terminal_output.verticalScrollBar().maximum()
+            )
+
+    def read_error(self):
+        if self.process:
+            data = self.process.readAllStandardError().data().decode()
+            self.terminal_output.append(f"<span style='color: #ff6b6b;'>{data}</span>")
+            # Auto-scroll to bottom
+            self.terminal_output.verticalScrollBar().setValue(
+                self.terminal_output.verticalScrollBar().maximum()
+            )
+
+    def process_finished(self, exit_code, exit_status):
+        self.terminal_output.append(f"\n💥 Shell process finished with exit code: {exit_code}\n")
+
+    def restart_shell(self):
+        self.terminal_output.append("\n🔄 Restarting shell...\n")
+        if self.process:
+            self.process.kill()
+            self.process.waitForFinished(1000)
+        self.start_shell()
+
+    def clear_terminal(self):
+        self.terminal_output.clear()
+
+    def closeEvent(self, event):
+        if self.process and self.process.state() == QProcess.Running:
+            self.process.kill()
+            self.process.waitForFinished(1000)
+        event.accept()
 class FlashThread(QThread):
     log_signal = Signal(str)
     progress_signal = Signal(int)
@@ -315,6 +663,16 @@ class FlashThread(QThread):
         self.operation = operation
         self.settings = settings
         self._is_running = True
+        self.fdl1_path = None
+        self.fdl2_path = None
+        self.pac_file_path = None
+
+    def set_fdl_files(self, fdl1_path, fdl2_path):
+        self.fdl1_path = fdl1_path
+        self.fdl2_path = fdl2_path
+
+    def set_pac_file(self, pac_file_path):
+        self.pac_file_path = pac_file_path
 
     def stop(self):
         self._is_running = False
@@ -325,6 +683,12 @@ class FlashThread(QThread):
             if not self.validate_tools():
                 self.finished_signal.emit(False, "Required tools not found")
                 return
+                
+            # For SPD devices, check if we have FDL files or PAC file
+            if self.device_type == "spreadtrum":
+                if not self.setup_spd_environment():
+                    self.finished_signal.emit(False, "SPD operation setup failed")
+                    return
                 
             if self.operation == "flash":
                 self.perform_flash()
@@ -340,13 +704,55 @@ class FlashThread(QThread):
             self.log_signal.emit(f"❌ Operation failed: {str(e)}")
             self.finished_signal.emit(False, str(e))
 
+    def setup_spd_environment(self):
+        """Setup FDL files for SPD operations"""
+        # If we have a PAC file, extract FDL files first
+        if self.pac_file_path and os.path.exists(self.pac_file_path):
+            self.log_signal.emit("📦 Extracting FDL files from PAC file...")
+            spd_tool = self.settings.get("spd_path", "spd.py")
+            extract_cmd = self.settings.get("spd_extract_cmd", "extractpac {pac_file}").format(
+                pac_file=self.pac_file_path)
+            
+            cmd = ["python", spd_tool] + extract_cmd.split()
+            
+            if not self.execute_command(cmd, "Extracting FDL from PAC"):
+                self.log_signal.emit("❌ Failed to extract FDL files from PAC")
+                return False
+            
+            # After extraction, FDL files should be in the same directory as PAC
+            pac_dir = os.path.dirname(self.pac_file_path)
+            self.fdl1_path = os.path.join(pac_dir, "FDL1.bin")
+            self.fdl2_path = os.path.join(pac_dir, "FDL2.bin")
+        
+        # Check if we have valid FDL files
+        if not self.fdl1_path or not os.path.exists(self.fdl1_path):
+            self.log_signal.emit("❌ FDL1.bin file not found or not provided")
+            return False
+            
+        if not self.fdl2_path or not os.path.exists(self.fdl2_path):
+            self.log_signal.emit("❌ FDL2.bin file not found or not provided")
+            return False
+            
+        self.log_signal.emit(f"✅ Using FDL1: {os.path.basename(self.fdl1_path)}")
+        self.log_signal.emit(f"✅ Using FDL2: {os.path.basename(self.fdl2_path)}")
+        return True
+
     def validate_tools(self):
         if self.device_type == "qualcomm":
             tool_path = self.settings.get("edl_path", "edl.py")
             tool_name = "Qualcomm EDL Tool"
-        else:
+        elif self.device_type == "mtk":
             tool_path = self.settings.get("mtk_path", "mtk.py")
             tool_name = "MediaTek MTK Tool"
+        elif self.device_type == "spreadtrum":
+            tool_path = self.settings.get("spd_path", "spd.py")
+            tool_name = "SPD Client"
+        elif self.device_type == "xynos":
+            tool_path = self.settings.get("xyn_path", "xyn_cli.py")
+            tool_name = "XYN Client"
+        else:
+            self.log_signal.emit("❌ Unknown device type")
+            return False
             
         valid, message = ToolValidator.validate_tool(tool_path, tool_name)
         self.log_signal.emit(message)
@@ -354,8 +760,8 @@ class FlashThread(QThread):
         if not valid:
             return False
             
-        # For advanced FRP, also validate AVB tool
-        if self.operation == "advance_frp":
+        # For advanced FRP, also validate AVB tool for Qualcomm/MTK
+        if self.operation == "advance_frp" and self.device_type in ["qualcomm", "mtk"]:
             avb_tool = self.settings.get("avb_path", "avbtool")
             valid_avb, message_avb = ToolValidator.validate_tool(avb_tool, "AVB Tool")
             self.log_signal.emit(message_avb)
@@ -363,6 +769,16 @@ class FlashThread(QThread):
                 return False
                 
         return True
+
+    def get_frp_partitions(self, frp_type="basic"):
+        """Get FRP partitions from settings"""
+        if frp_type == "advanced":
+            partitions_str = self.settings.get("advanced_frp_partitions", "frp,metadata,userdata,persist")
+        else:
+            partitions_str = self.settings.get("basic_frp_partitions", "frp,metadata,userdata")
+        
+        partitions = [p.strip() for p in partitions_str.split(',') if p.strip()]
+        return partitions
 
     def execute_command(self, cmd, description):
         if not self._is_running:
@@ -373,8 +789,20 @@ class FlashThread(QThread):
         
         try:
             # For simulation/demo purposes - remove this in production
-            if any(x in ' '.join(cmd) for x in ['mtk.py', 'edl.py', 'avbtool']):
-                if not any(os.path.exists(tool.split()[0]) for tool in [self.settings.get("mtk_path"), self.settings.get("edl_path"), self.settings.get("avb_path")]):
+            tool_exists = False
+            if any(x in ' '.join(cmd).lower() for x in ['mtk.py', 'edl.py', 'avbtool', 'spd.py', 'xyn_cli.py']):
+                if 'spd.py' in ' '.join(cmd).lower():
+                    tool_exists = os.path.exists(self.settings.get("spd_path", "spd.py").split()[0])
+                elif 'xyn_cli.py' in ' '.join(cmd).lower():
+                    tool_exists = os.path.exists(self.settings.get("xyn_path", "xyn_cli.py").split()[0])
+                else:
+                    tool_exists = any(os.path.exists(tool.split()[0]) for tool in [
+                        self.settings.get("mtk_path"), 
+                        self.settings.get("edl_path"), 
+                        self.settings.get("avb_path")
+                    ])
+                
+                if not tool_exists:
                     self.log_signal.emit("⚠️ Simulation mode: Tools not found, simulating operation")
                     # Simulate operation delay
                     import time
@@ -424,12 +852,25 @@ class FlashThread(QThread):
                 tool = self.settings.get("edl_path", "edl.py")
                 flash_cmd = self.settings.get("flash_cmd", "--flash {partition} {file}").format(
                     partition=partition_name, file=file_path)
-            else:
+                cmd = ["python", tool, "--port", self.com_port] + flash_cmd.split()
+                
+            elif self.device_type == "mtk":
                 tool = self.settings.get("mtk_path", "mtk.py")
                 flash_cmd = self.settings.get("flash_cmd", "--flash {partition} {file}").format(
                     partition=partition_name, file=file_path)
-            
-            cmd = ["python", tool, "--port", self.com_port] + flash_cmd.split()
+                cmd = ["python", tool, "--port", self.com_port] + flash_cmd.split()
+                
+            elif self.device_type == "spreadtrum":
+                tool = self.settings.get("spd_path", "spd.py")
+                flash_cmd = self.settings.get("spd_flash_cmd", "writepart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}").format(
+                    partition=partition_name, file=file_path, fdl1=self.fdl1_path, fdl2=self.fdl2_path)
+                cmd = ["python", tool, self.com_port] + flash_cmd.split()
+                
+            elif self.device_type == "xynos":
+                tool = self.settings.get("xyn_path", "xyn_cli.py")
+                flash_cmd = self.settings.get("xyn_flash_cmd", "write {partition} {file}").format(
+                    partition=partition_name, file=file_path)
+                cmd = ["python", tool] + flash_cmd.split()
             
             if not self.execute_command(cmd, f"Flashing {partition_name}"):
                 self.finished_signal.emit(False, f"Failed to flash {partition_name}")
@@ -439,8 +880,16 @@ class FlashThread(QThread):
         self.finished_signal.emit(True, "Flash completed successfully")
 
     def perform_frp_erase(self):
+        """Basic FRP erase for all device types"""
         self.operation_started.emit("frp")
-        partitions = ["frp", "persist", "persistence", "userdata"]
+        partitions = self.get_frp_partitions("basic")
+        
+        if not partitions:
+            self.log_signal.emit("❌ No FRP partitions configured")
+            self.finished_signal.emit(False, "No FRP partitions configured")
+            return
+            
+        self.log_signal.emit(f"🧹 Erasing partitions: {', '.join(partitions)}")
         
         for i, partition in enumerate(partitions):
             if not self._is_running:
@@ -454,20 +903,46 @@ class FlashThread(QThread):
             if self.device_type == "qualcomm":
                 tool = self.settings.get("edl_path", "edl.py")
                 erase_cmd = self.settings.get("erase_cmd", "--erase {partition}").format(partition=partition)
-            else:
+                cmd = ["python", tool, "--port", self.com_port] + erase_cmd.split()
+                
+            elif self.device_type == "mtk":
                 tool = self.settings.get("mtk_path", "mtk.py")
                 erase_cmd = self.settings.get("erase_cmd", "--erase {partition}").format(partition=partition)
-            
-            cmd = ["python", tool, "--port", self.com_port] + erase_cmd.split()
+                cmd = ["python", tool, "--port", self.com_port] + erase_cmd.split()
+                
+            elif self.device_type == "spreadtrum":
+                tool = self.settings.get("spd_path", "spd.py")
+                erase_cmd = self.settings.get("spd_erase_cmd", "erasepart {partition} --fdl1 {fdl1} --fdl2 {fdl2}").format(
+                    partition=partition, fdl1=self.fdl1_path, fdl2=self.fdl2_path)
+                cmd = ["python", tool, self.com_port] + erase_cmd.split()
+                
+            elif self.device_type == "xynos":
+                tool = self.settings.get("xyn_path", "xyn_cli.py")
+                erase_cmd = self.settings.get("xyn_erase_cmd", "erase {partition} --force").format(partition=partition)
+                cmd = ["python", tool] + erase_cmd.split()
             
             if not self.execute_command(cmd, f"Erasing {partition}"):
                 self.log_signal.emit(f"⚠️ Failed to erase {partition}, continuing...")
         
         self.progress_signal.emit(100)
-        self.finished_signal.emit(True, "FRP erase completed")
+        self.finished_signal.emit(True, "Basic FRP erase completed")
 
     def perform_advanced_frp(self):
+        """Advanced FRP for ALL device types with appropriate methods"""
         self.operation_started.emit("advance_frp")
+        
+        if self.device_type in ["qualcomm", "mtk"]:
+            self.perform_standard_advanced_frp()
+        elif self.device_type == "spreadtrum":
+            self.perform_spd_advanced_frp()
+        elif self.device_type == "xynos":
+            self.perform_xyn_advanced_frp()
+        else:
+            self.finished_signal.emit(False, "Advanced FRP not supported for this device type")
+
+    def perform_standard_advanced_frp(self):
+        """Advanced FRP for Qualcomm/MTK with vbmeta patching"""
+        self.log_signal.emit("🔧 Starting Advanced FRP (Qualcomm/MTK)...")
         
         # Read vbmeta
         self.log_signal.emit("📖 Reading vbmeta partition...")
@@ -488,8 +963,26 @@ class FlashThread(QThread):
             self.finished_signal.emit(False, "Failed to read vbmeta")
             return
 
-        # Erase partitions
-        self.perform_frp_erase()
+        # Erase advanced FRP partitions
+        partitions = self.get_frp_partitions("advanced")
+        self.log_signal.emit(f"🧹 Erasing advanced partitions: {', '.join(partitions)}")
+        
+        for partition in partitions:
+            if not self._is_running:
+                break
+                
+            self.log_signal.emit(f"🧹 Erasing {partition}...")
+            
+            if self.device_type == "qualcomm":
+                erase_cmd = self.settings.get("erase_cmd", "--erase {partition}").format(partition=partition)
+            else:
+                erase_cmd = self.settings.get("erase_cmd", "--erase {partition}").format(partition=partition)
+            
+            cmd = ["python", tool, "--port", self.com_port] + erase_cmd.split()
+            
+            if not self.execute_command(cmd, f"Erasing {partition}"):
+                self.log_signal.emit(f"⚠️ Failed to erase {partition}, continuing...")
+
         if not self._is_running:
             return
 
@@ -524,6 +1017,65 @@ class FlashThread(QThread):
         self.progress_signal.emit(100)
         self.finished_signal.emit(True, "Advanced FRP completed")
 
+    def perform_spd_advanced_frp(self):
+        """Advanced FRP for Spreadtrum/Unisoc devices"""
+        self.log_signal.emit("🔧 Starting Advanced FRP (Spreadtrum/Unisoc)...")
+        
+        partitions = self.get_frp_partitions("advanced")
+        self.log_signal.emit(f"🧹 Erasing advanced partitions: {', '.join(partitions)}")
+        
+        tool = self.settings.get("spd_path", "spd.py")
+        
+        for i, partition in enumerate(partitions):
+            if not self._is_running:
+                break
+                
+            progress = int((i / len(partitions)) * 100)
+            self.progress_signal.emit(progress)
+            
+            self.log_signal.emit(f"🧹 Advanced erase {partition}...")
+            
+            # Use advanced FRP command for SPD
+            adv_frp_cmd = self.settings.get("spd_adv_frp_cmd", "writepart {partition} zero.bin --fdl1 {fdl1} --fdl2 {fdl2}").format(
+                partition=partition, fdl1=self.fdl1_path, fdl2=self.fdl2_path)
+            
+            cmd = ["python", tool, self.com_port] + adv_frp_cmd.split()
+            
+            if not self.execute_command(cmd, f"Advanced FRP on {partition}"):
+                self.log_signal.emit(f"⚠️ Failed advanced FRP on {partition}, continuing...")
+        
+        self.progress_signal.emit(100)
+        self.finished_signal.emit(True, "Advanced FRP completed for Spreadtrum")
+
+    def perform_xyn_advanced_frp(self):
+        """Advanced FRP for Exynos devices"""
+        self.log_signal.emit("🔧 Starting Advanced FRP (Exynos)...")
+        
+        partitions = self.get_frp_partitions("advanced")
+        self.log_signal.emit(f"🧹 Erasing advanced partitions: {', '.join(partitions)}")
+        
+        tool = self.settings.get("xyn_path", "xyn_cli.py")
+        
+        for i, partition in enumerate(partitions):
+            if not self._is_running:
+                break
+                
+            progress = int((i / len(partitions)) * 100)
+            self.progress_signal.emit(progress)
+            
+            self.log_signal.emit(f"🧹 Advanced erase {partition}...")
+            
+            # Use advanced FRP command for XYN
+            adv_frp_cmd = self.settings.get("xyn_adv_frp_cmd", "erase {partition} --force").format(partition=partition)
+            
+            cmd = ["python", tool] + adv_frp_cmd.split()
+            
+            if not self.execute_command(cmd, f"Advanced FRP on {partition}"):
+                self.log_signal.emit(f"⚠️ Failed advanced FRP on {partition}, continuing...")
+        
+        self.progress_signal.emit(100)
+        self.finished_signal.emit(True, "Advanced FRP completed for Exynos")
+
 class ModernFlashTool(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -533,6 +1085,13 @@ class ModernFlashTool(QMainWindow):
         self.device_type = ""
         self.flash_files = []
         self.current_flash_thread = None
+        self.fdl1_path = None
+        self.fdl2_path = None
+        self.pac_file_path = None
+        
+        # Setup system tray
+        self.setup_tray_icon()
+        
         self.init_ui()
         self.apply_theme()
         
@@ -541,23 +1100,86 @@ class ModernFlashTool(QMainWindow):
 
     def load_settings(self):
         settings = QSettings("FlashTool", "DeviceFlasher")
-        return {
-            "mtk_path": settings.value("mtk_path", "mtk.py"),
-            "edl_path": settings.value("edl_path", "edl.py"),
-            "avb_path": settings.value("avb_path", "avbtool"),
-            "flash_cmd": settings.value("flash_cmd", "--flash {partition} {file}"),
-            "erase_cmd": settings.value("erase_cmd", "--erase {partition}"),
-            "read_cmd": settings.value("read_cmd", "--read {partition} {file}"),
-            "patch_cmd": settings.value("patch_cmd", "patch_vbmeta --input {input} --output {output}"),
-            "dark_mode": settings.value("dark_mode", False, type=bool),
-            "backup_enable": settings.value("backup_enable", True, type=bool),
-            "auto_detect": settings.value("auto_detect", True, type=bool)
+        default_settings = {
+            "mtk_path": "mtk.py",
+            "edl_path": "edl.py",
+            "avb_path": "avbtool",
+            "flash_cmd": "--flash {partition} {file}",
+            "erase_cmd": "--erase {partition}",
+            "read_cmd": "--read {partition} {file}",
+            "patch_cmd": "patch_vbmeta --input {input} --output {output}",
+            "basic_frp_partitions": "frp,metadata,userdata",
+            "advanced_frp_partitions": "frp,metadata,userdata,persist",
+            "dark_mode": False,
+            "backup_enable": True,
+            "auto_detect": True,
+            # SPD Client
+            "spd_path": "spd.py",
+            "spd_flash_cmd": "writepart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}",
+            "spd_erase_cmd": "erasepart {partition} --fdl1 {fdl1} --fdl2 {fdl2}",
+            "spd_read_cmd": "readpart {partition} {file} --fdl1 {fdl1} --fdl2 {fdl2}",
+            "spd_extract_cmd": "extractpac {pac_file}",
+            "spd_adv_frp_cmd": "writepart {partition} zero.bin --fdl1 {fdl1} --fdl2 {fdl2}",
+            # XYN Client
+            "xyn_path": "xyn_cli.py",
+            "xyn_flash_cmd": "write {partition} {file}",
+            "xyn_erase_cmd": "erase {partition} --force",
+            "xyn_read_cmd": "read {partition} {file}",
+            "xyn_detect_cmd": "detect",
+            "xyn_partitions_cmd": "partitions",
+            "xyn_adv_frp_cmd": "erase {partition} --force"
         }
+        
+        loaded_settings = {}
+        for key, default_value in default_settings.items():
+            if isinstance(default_value, bool):
+                loaded_settings[key] = settings.value(key, default_value, type=bool)
+            else:
+                loaded_settings[key] = settings.value(key, default_value)
+                
+        return loaded_settings
 
     def save_settings(self):
         settings = QSettings("FlashTool", "DeviceFlasher")
         for key, value in self.settings.items():
             settings.setValue(key, value)
+
+    def setup_tray_icon(self):
+        """Setup system tray icon"""
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return
+            
+        self.tray_icon = QSystemTrayIcon(self)
+        
+        # Create tray icon menu
+        tray_menu = QMenu()
+        
+        show_action = tray_menu.addAction("Show")
+        show_action.triggered.connect(self.show_window)
+        
+        quit_action = tray_menu.addAction("Exit")
+        quit_action.triggered.connect(self.quit_application)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        
+        # Set icon (you can replace this with your own icon path)
+        app_icon = self.style().standardIcon(QStyle.SP_ComputerIcon)
+        self.tray_icon.setIcon(app_icon)
+        self.tray_icon.setToolTip("devtical Flash Tool")
+        self.tray_icon.show()
+
+    def show_window(self):
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def quit_application(self):
+        self.close()
+
+    def tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show_window()
 
     def init_ui(self):
         self.setWindowTitle("🚀 devtical Device Flash Tool")
@@ -669,9 +1291,12 @@ class ModernFlashTool(QMainWindow):
         
         right_layout.addWidget(buttons_group)
         
-        # Log section
-        log_group = QGroupBox("📝 Operation Log")
-        log_layout = QVBoxLayout(log_group)
+        # Create tab widget for Log and Terminal
+        self.log_terminal_tabs = QTabWidget()
+        
+        # Log tab
+        log_tab = QWidget()
+        log_layout = QVBoxLayout(log_tab)
         
         self.log_text = QTextEdit()
         self.log_text.setFont(QFont("Consolas", 9))
@@ -686,7 +1311,13 @@ class ModernFlashTool(QMainWindow):
         log_controls.addStretch()
         log_layout.addLayout(log_controls)
         
-        right_layout.addWidget(log_group)
+        self.log_terminal_tabs.addTab(log_tab, "📝 Operation Log")
+        
+        # Terminal tab
+        self.terminal_widget = TerminalWidget()
+        self.log_terminal_tabs.addTab(self.terminal_widget, "💻 Shell")
+        
+        right_layout.addWidget(self.log_terminal_tabs)
         
         # Configure splitter
         splitter.addWidget(left_widget)
@@ -732,6 +1363,25 @@ class ModernFlashTool(QMainWindow):
         select_device_action.setToolTip("Select from detected devices")
         select_device_action.triggered.connect(self.select_device)
         toolbar.addAction(select_device_action)
+        
+        toolbar.addSeparator()
+        
+        # Terminal actions
+        terminal_action = QAction("💻 Terminal", self)
+        terminal_action.setToolTip("Switch to Terminal tab")
+        terminal_action.triggered.connect(self.switch_to_terminal)
+        toolbar.addAction(terminal_action)
+        
+        log_action = QAction("📝 Log", self)
+        log_action.setToolTip("Switch to Log tab")
+        log_action.triggered.connect(self.switch_to_log)
+        toolbar.addAction(log_action)
+
+    def switch_to_terminal(self):
+        self.log_terminal_tabs.setCurrentIndex(1)  # Switch to terminal tab
+
+    def switch_to_log(self):
+        self.log_terminal_tabs.setCurrentIndex(0)  # Switch to log tab
 
     def apply_theme(self):
         if self.settings.get("dark_mode", False):
@@ -884,6 +1534,26 @@ class ModernFlashTool(QMainWindow):
                 background-color: #2d2d2d;
                 color: #cccccc;
             }
+            QTabWidget::pane {
+                border: 1px solid #444;
+                background-color: #2d2d2d;
+            }
+            QTabBar::tab {
+                background-color: #404040;
+                color: white;
+                padding: 8px 16px;
+                border: 1px solid #555;
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background-color: #0078D7;
+                color: white;
+            }
+            QTabBar::tab:hover {
+                background-color: #4a4a4a;
+            }
         """
         self.setStyleSheet(dark_stylesheet)
 
@@ -945,6 +1615,26 @@ class ModernFlashTool(QMainWindow):
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #0078D7, stop:0.5 #0091FF, stop:1 #00B7FF);
                 border-radius: 6px;
+            }
+            QTabWidget::pane {
+                border: 1px solid #ccc;
+                background-color: #f9f9f9;
+            }
+            QTabBar::tab {
+                background-color: #e0e0e0;
+                color: #333;
+                padding: 8px 16px;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background-color: #0078D7;
+                color: white;
+            }
+            QTabBar::tab:hover {
+                background-color: #d0d0d0;
             }
         """
         self.setStyleSheet(light_stylesheet)
@@ -1051,6 +1741,12 @@ class ModernFlashTool(QMainWindow):
         elif "mediatek" in device_lower or "mtk" in device_lower:
             self.device_type = "mtk"
             self.device_info.setText("📱 MediaTek Device\nReady for flashing")
+        elif "spreadtrum" in device_lower or "unisoc" in device_lower or "sprd" in device_lower:
+            self.device_type = "spreadtrum"
+            self.device_info.setText("📱 Spreadtrum/Unisoc Device\nFDL files required for flashing")
+        elif "xynos" in device_lower or "exynos" in device_lower or "samsung" in device_lower:
+            self.device_type = "xynos"
+            self.device_info.setText("📱 Exynos Device\nReady for flashing")
         else:
             self.device_type = "unknown"
             self.device_info.setText("⚠️ Unknown Device Type\nProceed with caution")
@@ -1080,7 +1776,9 @@ class ModernFlashTool(QMainWindow):
         tools_to_check = [
             (self.settings.get("mtk_path", "mtk.py"), "MediaTek Tool"),
             (self.settings.get("edl_path", "edl.py"), "Qualcomm EDL Tool"),
-            (self.settings.get("avb_path", "avbtool"), "AVB Tool")
+            (self.settings.get("avb_path", "avbtool"), "AVB Tool"),
+            (self.settings.get("spd_path", "spd.py"), "SPD Client"),
+            (self.settings.get("xyn_path", "xyn_cli.py"), "XYN Client")
         ]
         
         all_valid = True
@@ -1092,10 +1790,8 @@ class ModernFlashTool(QMainWindow):
         
         if all_valid:
             self.log_text.append("✅ All tools are available")
-            QMessageBox.information(self, "Tools Valid", "All required tools are available.")
         else:
             self.log_text.append("❌ Some tools are missing. Please check settings.")
-            QMessageBox.warning(self, "Tools Missing", "Some required tools are missing. Please check the settings.")
         
         return all_valid
 
@@ -1106,6 +1802,82 @@ class ModernFlashTool(QMainWindow):
             self.apply_theme()
             self.log_text.append("✅ Settings updated")
 
+    def setup_spd_operation(self):
+        """Setup FDL files for SPD operations"""
+        # Check if we already have FDL files set
+        if self.fdl1_path and self.fdl2_path and os.path.exists(self.fdl1_path) and os.path.exists(self.fdl2_path):
+            return True
+            
+        # Check for FDL files in the selected directory
+        selected_dir = self.selected_directory
+        if selected_dir:
+            fdl1_candidates = glob.glob(os.path.join(selected_dir, "*fdl1*.bin")) + glob.glob(os.path.join(selected_dir, "FDL1.bin"))
+            fdl2_candidates = glob.glob(os.path.join(selected_dir, "*fdl2*.bin")) + glob.glob(os.path.join(selected_dir, "FDL2.bin"))
+            pac_candidates = glob.glob(os.path.join(selected_dir, "*.pac"))
+            
+            if fdl1_candidates and fdl2_candidates:
+                self.fdl1_path = fdl1_candidates[0]
+                self.fdl2_path = fdl2_candidates[0]
+                self.log_text.append(f"✅ Auto-detected FDL1: {os.path.basename(self.fdl1_path)}")
+                self.log_text.append(f"✅ Auto-detected FDL2: {os.path.basename(self.fdl2_path)}")
+                return True
+            elif pac_candidates:
+                reply = QMessageBox.question(self, "PAC File Found", 
+                                           f"Found PAC file: {os.path.basename(pac_candidates[0])}\n\n"
+                                           "Do you want to extract FDL files from this PAC file?",
+                                           QMessageBox.Yes | QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    self.pac_file_path = pac_candidates[0]
+                    return True
+        
+        # If no auto-detection, ask user to select files
+        return self.prompt_for_spd_files()
+
+    def prompt_for_spd_files(self):
+        """Prompt user to select FDL files or PAC file"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("SPD Client - File Selection")
+        msg.setText("SPD Client requires FDL1 and FDL2 files for operation.\n\nHow would you like to proceed?")
+        
+        btn_fdl = msg.addButton("Select FDL Files", QMessageBox.ActionRole)
+        btn_pac = msg.addButton("Select PAC File", QMessageBox.ActionRole)
+        btn_cancel = msg.addButton("Cancel", QMessageBox.RejectRole)
+        
+        msg.exec()
+        
+        if msg.clickedButton() == btn_fdl:
+            return self.select_fdl_files()
+        elif msg.clickedButton() == btn_pac:
+            return self.select_pac_file()
+        else:
+            return False
+
+    def select_fdl_files(self):
+        """Let user select FDL1 and FDL2 files"""
+        fdl1_path, _ = QFileDialog.getOpenFileName(self, "Select FDL1 File", "", "Binary Files (*.bin);;All Files (*)")
+        if not fdl1_path:
+            return False
+            
+        fdl2_path, _ = QFileDialog.getOpenFileName(self, "Select FDL2 File", "", "Binary Files (*.bin);;All Files (*)")
+        if not fdl2_path:
+            return False
+            
+        self.fdl1_path = fdl1_path
+        self.fdl2_path = fdl2_path
+        self.log_text.append(f"✅ Selected FDL1: {os.path.basename(self.fdl1_path)}")
+        self.log_text.append(f"✅ Selected FDL2: {os.path.basename(self.fdl2_path)}")
+        return True
+
+    def select_pac_file(self):
+        """Let user select a PAC file"""
+        pac_path, _ = QFileDialog.getOpenFileName(self, "Select PAC File", "", "PAC Files (*.pac);;All Files (*)")
+        if not pac_path:
+            return False
+            
+        self.pac_file_path = pac_path
+        self.log_text.append(f"✅ Selected PAC file: {os.path.basename(self.pac_file_path)}")
+        return True
+
     def start_flash(self):
         selected_files = self.get_selected_files()
         if not selected_files:
@@ -1115,6 +1887,11 @@ class ModernFlashTool(QMainWindow):
         if not self.validate_tools():
             QMessageBox.critical(self, "Tools Missing", "Required tools are not available. Please check settings.")
             return
+        
+        # For SPD devices, check if we have FDL files or PAC file
+        if self.device_type == "spreadtrum":
+            if not self.setup_spd_operation():
+                return
         
         com_port = self.selected_device.split(' - ')[0]
         
@@ -1129,6 +1906,13 @@ class ModernFlashTool(QMainWindow):
         
         self.log_text.append(f"🚀 Starting flash process on {com_port}...")
         self.current_flash_thread = FlashThread(self.device_type, selected_files, com_port, "flash", self.settings)
+        
+        # Set FDL files for SPD operations
+        if self.device_type == "spreadtrum":
+            self.current_flash_thread.set_fdl_files(self.fdl1_path, self.fdl2_path)
+            if self.pac_file_path:
+                self.current_flash_thread.set_pac_file(self.pac_file_path)
+                
         self.connect_flash_thread()
         self.current_flash_thread.start()
         
@@ -1139,10 +1923,18 @@ class ModernFlashTool(QMainWindow):
             QMessageBox.critical(self, "Tools Missing", "Required tools are not available. Please check settings.")
             return
         
+        # For SPD devices, check if we have FDL files
+        if self.device_type == "spreadtrum":
+            if not self.setup_spd_operation():
+                return
+        
         com_port = self.selected_device.split(' - ')[0]
         
+        # Get basic FRP partitions for confirmation
+        basic_partitions = self.settings.get("basic_frp_partitions", "frp,metadata,userdata")
+        
         reply = QMessageBox.warning(self, "Confirm FRP Erase", 
-                                  f"This will erase FRP, persist, and userdata partitions!\n\n"
+                                  f"This will erase partitions: {basic_partitions}\n\n"
                                   f"Device: {com_port}\n"
                                   f"Continue?",
                                   QMessageBox.Yes | QMessageBox.No)
@@ -1150,8 +1942,13 @@ class ModernFlashTool(QMainWindow):
         if reply != QMessageBox.Yes:
             return
         
-        self.log_text.append("🧹 Starting FRP erase process...")
+        self.log_text.append("🧹 Starting Basic FRP erase process...")
         self.current_flash_thread = FlashThread(self.device_type, [], com_port, "frp", self.settings)
+        
+        # Set FDL files for SPD operations
+        if self.device_type == "spreadtrum":
+            self.current_flash_thread.set_fdl_files(self.fdl1_path, self.fdl2_path)
+            
         self.connect_flash_thread()
         self.current_flash_thread.start()
         
@@ -1162,14 +1959,20 @@ class ModernFlashTool(QMainWindow):
             QMessageBox.critical(self, "Tools Missing", "Required tools are not available. Please check settings.")
             return
         
+        # For SPD devices, check if we have FDL files
+        if self.device_type == "spreadtrum":
+            if not self.setup_spd_operation():
+                return
+        
         com_port = self.selected_device.split(' - ')[0]
         
+        # Get advanced FRP partitions for confirmation
+        advanced_partitions = self.settings.get("advanced_frp_partitions", "frp,metadata,userdata,persist")
+        
         reply = QMessageBox.warning(self, "Confirm Advanced FRP", 
-                                  f"This will:\n"
-                                  f"1. Read and backup vbmeta\n"
-                                  f"2. Erase FRP partitions\n" 
-                                  f"3. Patch and flash vbmeta\n\n"
+                                  f"This will perform Advanced FRP on:\n{advanced_partitions}\n\n"
                                   f"Device: {com_port}\n"
+                                  f"Type: {self.device_type.capitalize()}\n"
                                   f"Continue?",
                                   QMessageBox.Yes | QMessageBox.No)
         
@@ -1178,6 +1981,11 @@ class ModernFlashTool(QMainWindow):
         
         self.log_text.append("🔧 Starting Advanced FRP process...")
         self.current_flash_thread = FlashThread(self.device_type, [], com_port, "advance_frp", self.settings)
+        
+        # Set FDL files for SPD operations
+        if self.device_type == "spreadtrum":
+            self.current_flash_thread.set_fdl_files(self.fdl1_path, self.fdl2_path)
+            
         self.connect_flash_thread()
         self.current_flash_thread.start()
         
@@ -1230,13 +2038,18 @@ class ModernFlashTool(QMainWindow):
         self.device_btn.setEnabled(enabled)
 
     def closeEvent(self, event):
+        # Close terminal process
+        if hasattr(self, 'terminal_widget'):
+            self.terminal_widget.closeEvent(event)
+        
+        # Close flash thread if running
         if self.current_flash_thread and self.current_flash_thread.isRunning():
             reply = QMessageBox.question(self, "Operation in Progress", 
                                        "An operation is still running. Are you sure you want to quit?",
                                        QMessageBox.Yes | QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.current_flash_thread.stop()
-                self.current_flash_thread.wait(2000)  # Wait 2 seconds for thread to stop
+                self.current_flash_thread.wait(2000)
                 event.accept()
             else:
                 event.ignore()
@@ -1246,7 +2059,11 @@ class ModernFlashTool(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("devtical Flash Tool")
-    app.setApplicationVersion("2.0")
+    app.setApplicationVersion("3.1")
+    
+    # Set application icon (you can replace this path with your icon)
+    if os.path.exists("icon.ico"):
+        app.setWindowIcon(QIcon("icon.ico"))
     
     # Set modern fusion style
     app.setStyle('Fusion')
