@@ -1,4 +1,5 @@
 # devtical
+![icon](https://raw.githubusercontent.com/ABDO10DZ/devtical/refs/heads/main/icon.ico)
 
 * `main.py` is currently a Python [PySide6](https://wiki.qt.io/Qt_for_Python_PySide) based flash tool (requires [mtkclient](https://github.com/bkerler/mtkclient) / [edl client](https://github.com/bkerler/edl) / [avbtool](https://github.com/jcrutchvt10/AVBTOOL)).
 * done : integrated with [SPDClient](https://github.com/ABDO10DZ/spdclient) and [XynClient](https://github.com/ABDO10DZ/XynClient) to create a multifunctional flash utility
