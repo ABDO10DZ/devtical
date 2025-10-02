@@ -1,6 +1,6 @@
 # devtical
 
-* `main.py` is currently a Python [PySide6](https://wiki.qt.io/Qt_for_Python_PySide) based flash tool (requires [mtkclient](https://github.com/bkerler/mtkclient) / [edl client](https://github.com/bkerler/edl) / [sp flash tool](https://spflashtool.com/)).
+* `main.py` is currently a Python [PySide6](https://wiki.qt.io/Qt_for_Python_PySide) based flash tool (requires [mtkclient](https://github.com/bkerler/mtkclient) / [edl client](https://github.com/bkerler/edl) / [avbtool](https://github.com/jcrutchvt10/AVBTOOL)).
 * done : integrated with [SPDClient](https://github.com/ABDO10DZ/spdclient) and [XynClient](https://github.com/ABDO10DZ/XynClient) to create a multifunctional flash utility
 * next : Integrated with [ffdm download manager](https://github.com/ABDO10DZ/ffdm) for mass/single automated downloading of firmware ROMs and tools, with auto usage to gain easy, free access for you—no server-side login required
 * **Added `minimal-RomScarper.py`:**
